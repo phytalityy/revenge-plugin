@@ -3,48 +3,23 @@
 
 const React = t.React;
 
-
-const Components = f.findByProps(
-    "TableSwitchRow",
+const UI = f.findByProps(
+    "Text",
+    "View",
+    "TableRow",
     "TableRowGroup",
     "Stack",
-    "TableRow",
     "TextInput",
-    "Text",
-    "View"
+    "TableSwitchRow"
 ) || {};
 
-
-const Text =
-Components.Text ||
-f.findByProps("Text")?.Text;
-
-
-const View =
-Components.View ||
-f.findByProps("View")?.View;
-
-
-const Stack =
-Components.Stack;
-
-
-const TextInput =
-Components.TextInput;
-
-
-const TableRow =
-Components.TableRow;
-
-
-const TableRowGroup =
-Components.TableRowGroup;
-
-
-const TableSwitchRow =
-Components.TableSwitchRow;
-
-
+const Text = UI.Text;
+const View = UI.View;
+const TableRow = UI.TableRow;
+const TableRowGroup = UI.TableRowGroup;
+const Stack = UI.Stack;
+const TextInput = UI.TextInput;
+const TableSwitchRow = UI.TableSwitchRow;
 
 const DraftStore = f.findByProps(
     "getDraft",
@@ -52,22 +27,50 @@ const DraftStore = f.findByProps(
 );
 
 
+const commands = {
+    warn: {
+        fields:["user","reason"]
+    },
 
-const commands = [
-    "warn",
-    "timeout",
-    "jail",
-    "kick",
-    "ban",
-    "mute",
-    "unmute",
-    "untimeout",
-    "unban",
-    "unjail"
-];
+    timeout:{
+        fields:["user","duration","reason"]
+    },
+
+    jail:{
+        fields:["user","duration","reason"]
+    },
+
+    kick:{
+        fields:["user","reason"]
+    },
+
+    ban:{
+        fields:["user","reason"]
+    },
+
+    mute:{
+        fields:["user","reason"]
+    },
+
+    unmute:{
+        fields:["user"]
+    },
+
+    untimeout:{
+        fields:["user"]
+    },
+
+    unban:{
+        fields:["user"]
+    },
+
+    unjail:{
+        fields:["user"]
+    }
+};
 
 
-const durations = [
+const durations=[
     "15m",
     "30m",
     "1h",
@@ -80,103 +83,84 @@ const durations = [
 ];
 
 
-const reasons = [
+const reasons=[
     "Spam",
     "Toxicity",
     "Harassment",
     "Advertising",
     "Politics",
-    "Ban Evasion",
-    "Custom"
+    "Ban Evasion"
 ];
 
 
-const defaults = {
-
+const defaults={
     enabled:true,
-
     command:"warn",
-
     user:"",
-
     duration:"1h",
-
     reason:"Spam"
-
 };
 
 
-
 for(
-    const [key,value]
-    of Object.entries(defaults)
+    const [k,v] of Object.entries(defaults)
 ){
 
     if(
-        L.storage[key] === undefined
+        L.storage[k] === undefined
     ){
 
-        L.storage[key] = value;
+        L.storage[k]=v;
 
     }
 
 }
 
 
-
-let currentChannel = null;
-
+let currentChannel=null;
 
 
-function buildCommand(){
+function createCommand(){
 
-    let command =
-    "," + L.storage.command;
-
+    let cmd=
+    ","+L.storage.command;
 
 
     if(
-        L.storage.user &&
-        L.storage.user.trim()
+        L.storage.user
     ){
 
-        command +=
-        " " + L.storage.user.trim();
+        cmd+=" "+L.storage.user;
 
     }
 
 
-
     if(
-        L.storage.command === "timeout"
+        L.storage.command==="timeout" ||
+        L.storage.command==="jail"
     ){
 
-        command +=
-        " " + L.storage.duration;
+        cmd+=" "+L.storage.duration;
 
     }
 
 
-
     if(
-        L.storage.reason &&
-        L.storage.reason.trim()
+        L.storage.reason
     ){
 
-        command +=
-        " " + L.storage.reason;
+        cmd+=" "+L.storage.reason;
 
     }
 
 
-
-    return command;
+    return cmd;
 
 }
 
 
 
-function detectCommand(text){
+function detectSlash(text){
 
     if(
         !L.storage.enabled
@@ -184,47 +168,35 @@ function detectCommand(text){
         return;
 
 
-
     if(
-        typeof text !== "string"
+        typeof text!=="string"
     )
         return;
 
 
-
     if(
-        !text.startsWith(",")
+        !text.startsWith("/")
     )
         return;
 
 
-
-    const query =
-    text
-    .slice(1)
-    .toLowerCase()
-    .trim();
-
-
-
-    const match =
-    commands.find(
-        c =>
-        c.startsWith(query)
-    );
-
+    let command =
+    text.slice(1)
+    .split(" ")[0]
+    .toLowerCase();
 
 
     if(
-        match
+        commands[command]
     ){
 
-        L.storage.command =
-        match;
+        L.storage.command=command;
 
     }
 
 }
+
+
 
 function Settings(){
 
@@ -233,20 +205,19 @@ function Settings(){
     );
 
 
-    const [,update] =
+    const [,update]=
     React.useReducer(
         x=>x+1,
         0
     );
 
 
-    function setValue(
+    function set(
         key,
         value
     ){
 
-        L.storage[key] =
-        value;
+        L.storage[key]=value;
 
         update();
 
@@ -254,7 +225,7 @@ function Settings(){
 
 
 
-    function insertCommand(){
+    function insert(){
 
         if(
             !currentChannel
@@ -270,17 +241,10 @@ function Settings(){
         }
 
 
-        if(
-            DraftStore &&
-            DraftStore.setDraft
-        ){
-
-            DraftStore.setDraft(
-                currentChannel,
-                buildCommand()
-            );
-
-        }
+        DraftStore?.setDraft(
+            currentChannel,
+            createCommand()
+        );
 
 
         g.showToast(
@@ -301,33 +265,18 @@ function Settings(){
         },
 
 
-
         TableSwitchRow &&
         React.createElement(
             TableSwitchRow,
             {
-                label:"Enabled",
-
-                subLabel:
-                "Enable moderation command helper",
-
-                value:
-                L.storage.enabled,
-
-                onValueChange:
-                value=>{
-
-                    setValue(
-                        "enabled",
-                        value
-                    );
-
-                }
-
+                label:"Enable Slash Commands",
+                value:L.storage.enabled,
+                onValueChange:v=>set(
+                    "enabled",
+                    v
+                )
             }
         ),
-
-
 
 
         TableRowGroup &&
@@ -338,37 +287,22 @@ function Settings(){
             },
 
 
-            commands.map(
+            Object.keys(commands).map(
                 command=>
 
-                TableRow &&
                 React.createElement(
                     TableRow,
                     {
                         key:command,
 
                         label:
-                        "," + command,
+                        "/"+command,
 
-                        subLabel:
-                        L.storage.command === command
-                        ?
-                        "Selected"
-                        :
-                        "",
-
-
-                        onPress:()=>{
-
-                            setValue(
-                                "command",
-                                command
-                            );
-
-                        }
-
+                        onPress:()=>set(
+                            "command",
+                            command
+                        )
                     }
-
                 )
 
             )
@@ -376,197 +310,49 @@ function Settings(){
         ),
 
 
-
-
-
-        TableRowGroup &&
+        TextInput &&
         React.createElement(
-            TableRowGroup,
+            TextInput,
             {
-                title:"User"
-            },
-
-
-            Stack &&
-            TextInput &&
-            React.createElement(
-                Stack,
-                {
-                    spacing:8
-                },
-
-
-                React.createElement(
-                    TextInput,
-                    {
-                        placeholder:
-                        "@user",
-
-                        value:
-                        L.storage.user,
-
-
-                        onChangeText:
-                        value=>{
-
-                            setValue(
-                                "user",
-                                value
-                            );
-
-                        }
-
-                    }
-
+                placeholder:"@user",
+                value:L.storage.user,
+                onChangeText:v=>set(
+                    "user",
+                    v
                 )
-
-            )
-
+            }
         ),
 
 
-
-
-
-        TableRowGroup &&
+        TextInput &&
         React.createElement(
-            TableRowGroup,
+            TextInput,
             {
-                title:"Duration"
-            },
-
-
-            durations.map(
-                duration=>
-
-                TableRow &&
-                React.createElement(
-                    TableRow,
-                    {
-                        key:duration,
-
-                        label:
-                        duration,
-
-                        subLabel:
-                        L.storage.duration === duration
-                        ?
-                        "Selected"
-                        :
-                        "",
-
-
-                        onPress:()=>{
-
-                            setValue(
-                                "duration",
-                                duration
-                            );
-
-                        }
-
-                    }
-
+                placeholder:"Reason",
+                value:L.storage.reason,
+                onChangeText:v=>set(
+                    "reason",
+                    v
                 )
-
-            )
-
+            }
         ),
 
 
-
-
-
-        TableRowGroup &&
+        Text &&
         React.createElement(
-            TableRowGroup,
-            {
-                title:"Reason"
-            },
-
-
-            reasons.map(
-                reason=>
-
-                TableRow &&
-                React.createElement(
-                    TableRow,
-                    {
-                        key:reason,
-
-                        label:
-                        reason,
-
-                        subLabel:
-                        L.storage.reason === reason
-                        ?
-                        "Selected"
-                        :
-                        "",
-
-
-                        onPress:()=>{
-
-                            setValue(
-                                "reason",
-                                reason
-                            );
-
-                        }
-
-                    }
-
-                )
-
-            )
-
+            Text,
+            null,
+            "Preview: "+createCommand()
         ),
-
-
-
-
-
-        TableRowGroup &&
-        React.createElement(
-            TableRowGroup,
-            {
-                title:"Preview"
-            },
-
-
-            Text &&
-            React.createElement(
-                Text,
-                {
-                    style:{
-                        padding:12
-                    }
-                },
-
-                buildCommand()
-
-            )
-
-        ),
-
-
 
 
         TableRow &&
         React.createElement(
             TableRow,
             {
-                label:
-                "Insert Command",
-
-                subLabel:
-                "Insert generated command into chat",
-
-                onPress:
-                insertCommand
-
+                label:"Insert Command",
+                onPress:insert
             }
-
         )
 
     );
@@ -575,21 +361,20 @@ function Settings(){
 
 
 
-const plugin = {
+const plugin={
 
     onLoad(){
 
         console.log(
-            "[ModerationTools] Loaded"
+            "[SlashModeration] Loaded"
         );
 
 
         if(
-            DraftStore &&
-            DraftStore.setDraft
+            DraftStore?.setDraft
         ){
 
-            const original =
+            const old =
             DraftStore.setDraft;
 
 
@@ -603,12 +388,12 @@ const plugin = {
                 channel;
 
 
-                detectCommand(
+                detectSlash(
                     text
                 );
 
 
-                return original.apply(
+                return old.apply(
                     this,
                     arguments
                 );
@@ -619,24 +404,17 @@ const plugin = {
 
     },
 
-    onUnload(){
 
-        console.log(
-            "[ModerationTools] Unloaded"
-        );
-
-    },
+    onUnload(){},
 
 
-    settings:
-    Settings
+    settings:Settings
 
 };
 
 
 
-w.default =
-plugin;
+w.default=plugin;
 
 
 Object.defineProperty(
